@@ -1,4 +1,5 @@
 const STORAGE_KEY = "educagrana-local-v1";
+const STORAGE_OWNER_KEY = `${STORAGE_KEY}:owner`;
 const CATEGORIES = ["Moradia", "Alimentação", "Transporte", "Saúde", "Educação", "Lazer", "Assinaturas", "Outros"];
 const PAYMENTS = ["Pix", "Dinheiro", "Débito", "Crédito", "Boleto"];
 const FREQUENCIES = ["Mensal", "Quinzenal", "Semanal", "Anual"];
@@ -25,10 +26,34 @@ let toastTimer;
 let calculatorMode = "installment";
 const dialog = document.querySelector("#record-dialog");
 const recordForm = document.querySelector("#record-form");
+const authDialog = document.querySelector("#auth-dialog");
+const authForm = document.querySelector("#auth-form");
+const authNotice = document.querySelector("#auth-notice");
+let supabaseClient = null;
+let authUser = null;
+let cloudReady = false;
+let cloudLoading = false;
+let cloudSaveTimer = 0;
+let authMode = "login";
+let authSetupError = "";
+
+const supabaseConfig = window.EDUCAGRANA_SUPABASE_CONFIG || {};
+if (supabaseConfig.url && supabaseConfig.anonKey) {
+  try {
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    supabaseClient = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+  } catch {
+    authSetupError = "Não foi possível carregar o serviço de contas. Verifique sua conexão.";
+  }
+}
 
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (authUser) localStorage.setItem(STORAGE_OWNER_KEY, authUser.id);
+    if (cloudReady && !cloudLoading) scheduleCloudSave();
     return true;
   } catch {
     showToast("Não foi possível salvar. Verifique o espaço disponível neste navegador.");
@@ -73,6 +98,146 @@ function showToast(message) {
   toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 2800);
 }
 
+function setAuthNotice(message, kind = "info") {
+  authNotice.textContent = message;
+  authNotice.dataset.kind = kind;
+  authNotice.hidden = !message;
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const resetMode = mode === "forgot";
+  const updateMode = mode === "update";
+  const copy = {
+    login: ["Entrar na sua conta", "Acesse seus dados sincronizados.", "Entrar"],
+    signup: ["Criar sua conta", "Seus dados serão sincronizados entre dispositivos.", "Criar conta"],
+    forgot: ["Recuperar senha", "Enviaremos um link de redefinição para seu e-mail.", "Enviar link"],
+    update: ["Definir nova senha", "Escolha uma nova senha para sua conta.", "Salvar senha"]
+  }[mode];
+  document.querySelector("#auth-title").textContent = copy[0];
+  document.querySelector("#auth-description").textContent = copy[1];
+  document.querySelector("#auth-submit").textContent = copy[2];
+  document.querySelector("#auth-password-field").hidden = resetMode;
+  document.querySelector("#auth-password").required = !resetMode;
+  document.querySelector("#auth-password").autocomplete = mode === "signup" || updateMode ? "new-password" : "current-password";
+  document.querySelector("#auth-forgot").hidden = mode !== "login";
+  document.querySelector("#auth-mode-toggle").hidden = resetMode || updateMode;
+  document.querySelector("#auth-mode-toggle").textContent = mode === "signup" ? "Já tem conta? Entrar" : "Criar conta";
+  setAuthNotice("");
+}
+
+function updateAccountUI() {
+  const connected = Boolean(authUser);
+  document.querySelector("#account-label").textContent = connected ? "Conta" : "Entrar";
+  document.querySelector("#account-toggle").setAttribute("aria-label", connected ? "Abrir conta" : "Entrar na conta");
+  document.querySelector("#account-badge").textContent = connected ? "NUVEM" : "LOCAL";
+  document.querySelector("#account-status").textContent = connected
+    ? `Conectado como ${authUser.email}.`
+    : supabaseClient
+      ? "Entre ou crie uma conta para sincronizar seu progresso entre dispositivos."
+      : "A conta na nuvem ainda precisa ser configurada. O app continua salvando localmente.";
+  document.querySelector("#storage-description").textContent = connected
+    ? "Seus registros são sincronizados com sua conta e mantidos em cópia neste navegador."
+    : "Sem uma conta conectada, os registros ficam apenas neste navegador.";
+  document.querySelector("#account-open").hidden = connected;
+  document.querySelector("#account-signout").hidden = !connected;
+}
+
+function openAccountDialog() {
+  if (authUser) {
+    showView("settings");
+    document.querySelector("#account-settings").scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  setAuthMode("login");
+  authDialog.showModal();
+  authForm.querySelectorAll("input, .auth-links button, #auth-submit").forEach((control) => {
+    control.disabled = !supabaseClient;
+  });
+  if (!supabaseClient) {
+    setAuthNotice(authSetupError || "Para ativar contas, configure o projeto Supabase e supabase-config.js.", "warning");
+    return;
+  }
+  document.querySelector("#auth-email").focus();
+}
+
+document.querySelector("#account-toggle").addEventListener("click", openAccountDialog);
+document.querySelector("#account-open").addEventListener("click", openAccountDialog);
+document.querySelector("#auth-mode-toggle").addEventListener("click", () => setAuthMode(authMode === "signup" ? "login" : "signup"));
+document.querySelector("#auth-forgot").addEventListener("click", () => setAuthMode("forgot"));
+authDialog.addEventListener("click", (event) => {
+  if (event.target === authDialog || event.target.closest("[data-auth-close]")) authDialog.close();
+});
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!authForm.reportValidity()) return;
+  if (!supabaseClient) {
+    setAuthNotice(authSetupError || "Configure supabase-config.js e as políticas SQL antes de ativar contas.", "warning");
+    return;
+  }
+
+  const submitButton = document.querySelector("#auth-submit");
+  const email = document.querySelector("#auth-email").value.trim();
+  const password = document.querySelector("#auth-password").value;
+  submitButton.disabled = true;
+  setAuthNotice("");
+  try {
+    let result;
+    if (authMode === "login") {
+      result = await supabaseClient.auth.signInWithPassword({ email, password });
+    } else if (authMode === "signup") {
+      result = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
+    } else if (authMode === "forgot") {
+      result = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    } else {
+      result = await supabaseClient.auth.updateUser({ password });
+    }
+
+    if (result.error) {
+      setAuthNotice(result.error.message, "warning");
+      return;
+    }
+    if (authMode === "signup" && !result.data.session) {
+      setAuthNotice("Confira seu e-mail e confirme a conta para continuar.");
+      return;
+    }
+    if (authMode === "forgot") {
+      setAuthNotice("Se este e-mail estiver cadastrado, você receberá um link para redefinir a senha.");
+      return;
+    }
+    if (authMode === "update") showToast("Senha atualizada.");
+    else showToast(authMode === "signup" ? "Conta criada." : "Login concluído.");
+    authDialog.close();
+  } catch {
+    setAuthNotice("Não foi possível concluir a solicitação. Tente novamente.", "warning");
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+async function signOut() {
+  if (!supabaseClient || !authUser) return;
+  await writeCloudProgress();
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    showToast("Não foi possível sair da conta.");
+    return;
+  }
+  window.clearTimeout(cloudSaveTimer);
+  authUser = null;
+  cloudReady = false;
+  state = structuredClone(EMPTY_STATE);
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_OWNER_KEY);
+  renderAll();
+  updateAccountUI();
+  setSyncStatus("Você saiu. Seu progresso permanece na conta.");
+  showToast("Sessão encerrada.");
+}
+
+document.querySelector("#account-signout").addEventListener("click", signOut);
+
 function monthlyIncome(income) {
   const amount = Number(income.amount) || 0;
   if (!income.active) return 0;
@@ -80,6 +245,148 @@ function monthlyIncome(income) {
   if (income.frequency === "Semanal") return amount * 52 / 12;
   if (income.frequency === "Anual") return amount / 12;
   return amount;
+}
+
+function normalizeCloudState(value) {
+  return {
+    expenses: Array.isArray(value?.expenses) ? value.expenses : [],
+    cards: Array.isArray(value?.cards) ? value.cards : [],
+    incomes: Array.isArray(value?.incomes) ? value.incomes : [],
+    theme: value?.theme === "dark" ? "dark" : "light"
+  };
+}
+
+function hasSavedRecords(value) {
+  return value.expenses.length > 0 || value.cards.length > 0 || value.incomes.length > 0;
+}
+
+function mergePendingState(remote, local) {
+  const mergeRecords = (remoteRecords, localRecords) => {
+    const records = [...remoteRecords];
+    const ids = new Set(records.map((record) => record.id));
+    localRecords.forEach((record) => {
+      if (!ids.has(record.id)) records.push(record);
+    });
+    return records;
+  };
+  return {
+    expenses: mergeRecords(remote.expenses, local.expenses),
+    cards: mergeRecords(remote.cards, local.cards),
+    incomes: mergeRecords(remote.incomes, local.incomes),
+    theme: remote.theme || local.theme
+  };
+}
+
+function setSyncStatus(message) {
+  document.querySelector("#sync-status").textContent = message;
+}
+
+async function writeCloudProgress() {
+  if (!supabaseClient || !authUser || !cloudReady) return;
+  setSyncStatus("Sincronizando progresso…");
+  const { error } = await supabaseClient.from("finance_progress").upsert({
+    user_id: authUser.id,
+    data: state,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "user_id" });
+  if (error) {
+    setSyncStatus("Não foi possível sincronizar. Os dados continuam salvos neste navegador.");
+    return;
+  }
+  setSyncStatus("Progresso sincronizado com sua conta.");
+}
+
+function scheduleCloudSave() {
+  if (!cloudReady || !authUser) return;
+  window.clearTimeout(cloudSaveTimer);
+  setSyncStatus("Sincronização pendente…");
+  cloudSaveTimer = window.setTimeout(() => { void writeCloudProgress(); }, 700);
+}
+
+async function applyAuthSession(session) {
+  const user = session?.user;
+  if (!user) {
+    if (authUser || localStorage.getItem(STORAGE_OWNER_KEY)) {
+      authUser = null;
+      cloudReady = false;
+      cloudLoading = true;
+      window.clearTimeout(cloudSaveTimer);
+      state = structuredClone(EMPTY_STATE);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_OWNER_KEY);
+      cloudLoading = false;
+      renderAll();
+    }
+    updateAccountUI();
+    setSyncStatus("Conecte sua conta para sincronizar o progresso.");
+    return;
+  }
+  if (cloudReady && authUser?.id === user.id) return;
+
+  authUser = user;
+  cloudReady = false;
+  cloudLoading = true;
+  updateAccountUI();
+  setSyncStatus("Carregando seu progresso…");
+
+  const localOwner = localStorage.getItem(STORAGE_OWNER_KEY);
+  const cachedState = localOwner && localOwner !== user.id ? structuredClone(EMPTY_STATE) : loadState();
+  const { data, error } = await supabaseClient
+    .from("finance_progress")
+    .select("data")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    cloudLoading = false;
+    setSyncStatus("Falha ao carregar a nuvem. Seus dados locais foram mantidos.");
+    showToast("Não foi possível carregar o progresso da conta.");
+    return;
+  }
+
+  let shouldUpload = false;
+  if (data?.data) {
+    const remoteState = normalizeCloudState(data.data);
+    const hasAnonymousLocalData = !localOwner && hasSavedRecords(cachedState);
+    state = hasAnonymousLocalData ? mergePendingState(remoteState, cachedState) : remoteState;
+    shouldUpload = hasAnonymousLocalData;
+  } else {
+    state = cachedState;
+    shouldUpload = hasSavedRecords(cachedState);
+  }
+
+  localStorage.setItem(STORAGE_OWNER_KEY, user.id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  cloudLoading = false;
+  cloudReady = true;
+  renderAll();
+  updateAccountUI();
+  setSyncStatus(data ? "Progresso carregado da sua conta." : "Conta conectada. Seu progresso será salvo na nuvem.");
+  if (shouldUpload) scheduleCloudSave();
+}
+
+async function initializeCloudAuth() {
+  if (!supabaseClient) {
+    updateAccountUI();
+    setSyncStatus(authSetupError || "Seus registros ficam neste navegador até configurar uma conta.");
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    setSyncStatus("Não foi possível verificar sua sessão. Tente entrar novamente.");
+    return;
+  }
+  await applyAuthSession(data.session);
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      setAuthMode("update");
+      authDialog.showModal();
+      setAuthNotice("Defina uma nova senha para sua conta.");
+    }
+    window.setTimeout(() => { void applyAuthSession(session); }, 0);
+  });
+  window.addEventListener("online", scheduleCloudSave);
 }
 
 function activeMonthExpenses() {
@@ -435,8 +742,9 @@ document.querySelector("#calculator-form").addEventListener("submit", (event) =>
   result.innerHTML = `<span class="result-mark" aria-hidden="true">＝</span><p>${calculatorMode === "installment" ? "Valor estimado por parcela" : "Total estimado ao final"}</p><strong class="result-total">${money(calculatorMode === "installment" ? installment : total)}</strong><div class="result-breakdown"><div class="result-line"><span>Valor inicial</span><strong>${money(principal)}</strong></div><div class="result-line"><span>Juros estimados</span><strong>${money(interest)}</strong></div><div class="result-line"><span>Total estimado</span><strong>${money(total)}</strong></div></div>`;
 });
 
-function initialize() {
+async function initialize() {
   document.querySelector("#today-label").textContent = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  await initializeCloudAuth();
   renderAll();
   showView("dashboard");
 }

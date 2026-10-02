@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#163a32">
+  <meta name="theme-color" content="#161616">
   <meta name="description" content="Organize receitas, gastos e cartões com o EducaGrana.">
   <title>EducaGrana | Finanças pessoais</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="script.js" defer></script>
+  <script src="supabase-config.js"></script>
+  <script type="module" src="script.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -35,6 +36,7 @@
       <header class="topbar">
         <div class="topbar-context"><span class="topbar-kicker">EDUCAGRANA</span><span id="today-label"></span></div>
         <div class="topbar-actions">
+          <button class="button button-outline account-button" id="account-toggle" type="button" aria-label="Entrar na conta"><span aria-hidden="true">◉</span><span id="account-label">Entrar</span></button>
           <button class="icon-button" id="theme-toggle" type="button" aria-label="Alternar tema" title="Alternar tema"><span aria-hidden="true">◐</span></button>
           <button class="button button-primary top-add" data-open="expense" type="button"><span aria-hidden="true">＋</span>Novo gasto</button>
         </div>
@@ -86,8 +88,9 @@
 
         <section class="view" data-page="settings" aria-labelledby="settings-title" hidden>
           <div class="page-heading"><div><p class="eyebrow">PREFERÊNCIAS</p><h1 id="settings-title">Ajustes</h1><p class="page-subtitle">Controle seus dados armazenados neste navegador.</p></div></div>
-          <section class="settings-section"><div class="section-heading"><div><p class="eyebrow">PRIVACIDADE</p><h2>Seus dados</h2></div></div><p class="settings-copy">Este app salva seus registros localmente neste navegador. Eles não são enviados para uma conta ou servidor.</p><div class="settings-actions"><button class="button button-outline" id="backup-json" type="button">Baixar cópia dos dados</button><label class="button button-outline file-button">Importar cópia<input id="restore-json" type="file" accept="application/json,.json" hidden></label><button class="button button-danger" id="clear-data" type="button">Apagar todos os dados locais</button></div></section>
-          <section class="settings-section"><div class="section-heading"><div><p class="eyebrow">ARMAZENAMENTO</p><h2>Uso neste navegador</h2></div><span class="independent-badge">LOCAL</span></div><p class="settings-copy">Seus registros ficam neste dispositivo e não são sincronizados com outros navegadores.</p></section>
+          <section class="settings-section" id="account-settings"><div class="section-heading"><div><p class="eyebrow">CONTA</p><h2>Conta e sincronização</h2></div><span class="independent-badge" id="account-badge">LOCAL</span></div><p class="settings-copy" id="account-status">Entre ou crie uma conta para sincronizar seu progresso entre dispositivos.</p><p class="settings-copy" id="sync-status" role="status" aria-live="polite">Seus registros atuais ficam neste navegador.</p><div class="settings-actions"><button class="button button-primary" id="account-open" type="button">Entrar ou criar conta</button><button class="button button-outline" id="account-signout" type="button" hidden>Sair da conta</button></div></section>
+          <section class="settings-section"><div class="section-heading"><div><p class="eyebrow">PRIVACIDADE</p><h2>Seus dados</h2></div></div><p class="settings-copy" id="storage-description">Sem uma conta conectada, os registros ficam apenas neste navegador.</p><div class="settings-actions"><button class="button button-outline" id="backup-json" type="button">Baixar cópia dos dados</button><label class="button button-outline file-button">Importar cópia<input id="restore-json" type="file" accept="application/json,.json" hidden></label><button class="button button-danger" id="clear-data" type="button">Apagar todos os dados locais</button></div></section>
+          <section class="settings-section"><div class="section-heading"><div><p class="eyebrow">ARMAZENAMENTO</p><h2>Uso neste navegador</h2></div><span class="independent-badge">LOCAL</span></div><p class="settings-copy">A cópia local permite continuar usando o app neste dispositivo. Faça backup antes de limpar os dados do navegador.</p></section>
         </section>
       </main>
       <footer class="workspace-footer"><span>EducaGrana</span><span>Seus dados permanecem neste navegador.</span></footer>
@@ -95,6 +98,16 @@
   </div>
 
   <dialog id="record-dialog" class="record-dialog"><form id="record-form" method="dialog"></form></dialog>
+  <dialog id="auth-dialog" class="record-dialog">
+    <form id="auth-form">
+      <div class="dialog-heading"><div><p class="eyebrow">EDUCAGRANA</p><h2 id="auth-title">Entrar na sua conta</h2><p id="auth-description">Acesse seus dados sincronizados.</p></div><button class="dialog-close" type="button" data-auth-close aria-label="Fechar">×</button></div>
+      <label class="field" for="auth-email"><span>E-mail</span><input id="auth-email" name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com"></label>
+      <label class="field" id="auth-password-field" for="auth-password"><span>Senha</span><input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo de 8 caracteres"></label>
+      <p class="notice" id="auth-notice" role="status" aria-live="polite" hidden></p>
+      <div class="auth-links"><button class="text-button" id="auth-forgot" type="button">Esqueci minha senha</button><button class="text-button" id="auth-mode-toggle" type="button">Criar conta</button></div>
+      <div class="dialog-actions"><button class="button button-outline" type="button" data-auth-close>Cancelar</button><button class="button button-primary" id="auth-submit" type="submit">Entrar</button></div>
+    </form>
+  </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
