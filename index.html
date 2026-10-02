@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163a32">
+  <meta name="description" content="Organize receitas, gastos e cartões com o EducaGrana.">
+  <title>EducaGrana | Finanças pessoais</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#painel" aria-label="EducaGrana, painel">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span>Educa<span class="brand-light">Grana</span></span>
+      </a>
+      <p class="side-caption">FINANÇAS DO DIA A DIA</p>
+      <nav class="primary-nav" aria-label="Navegação principal">
+        <button class="nav-item is-active" data-view="dashboard"><span aria-hidden="true">◫</span>Painel</button>
+        <button class="nav-item" data-view="expenses"><span aria-hidden="true">↘</span>Gastos</button>
+        <button class="nav-item" data-view="cards"><span aria-hidden="true">▤</span>Cartões</button>
+        <button class="nav-item" data-view="income"><span aria-hidden="true">↗</span>Receitas</button>
+        <button class="nav-item" data-view="calculator"><span aria-hidden="true">÷</span>Calculadora</button>
+        <button class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span>Ajustes</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="local-indicator" aria-hidden="true"></span>
+        <span>Dados salvos neste navegador</span>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-context"><span class="topbar-kicker">EDUCAGRANA</span><span id="today-label"></span></div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="theme-toggle" type="button" aria-label="Alternar tema" title="Alternar tema"><span aria-hidden="true">◐</span></button>
+          <button class="button button-primary top-add" data-open="expense" type="button"><span aria-hidden="true">＋</span>Novo gasto</button>
+        </div>
+      </header>
+
+      <main id="main-content">
+        <section class="view is-visible" data-page="dashboard" aria-labelledby="dashboard-title">
+          <div class="page-heading">
+            <div><p class="eyebrow">SEU RESUMO</p><h1 id="dashboard-title">Painel financeiro</h1><p class="page-subtitle">Um retrato simples do seu mês, atualizado com seus registros.</p></div>
+            <button class="button button-outline" id="report-csv" type="button"><span aria-hidden="true">↓</span>Baixar relatório</button>
+          </div>
+          <div class="metric-grid">
+            <article class="metric metric-income"><div class="metric-top"><span>Receitas ativas</span><span class="metric-symbol" aria-hidden="true">↗</span></div><strong id="metric-income">R$ 0,00</strong><small>total mensal previsto</small></article>
+            <article class="metric metric-expense"><div class="metric-top"><span>Gastos do mês</span><span class="metric-symbol" aria-hidden="true">↘</span></div><strong id="metric-expenses">R$ 0,00</strong><small id="expense-count">nenhum lançamento</small></article>
+            <article class="metric metric-balance"><div class="metric-top"><span>Saldo estimado</span><span class="metric-symbol" aria-hidden="true">＝</span></div><strong id="metric-balance">R$ 0,00</strong><small>receitas menos gastos</small></article>
+            <article class="metric metric-limit"><div class="metric-top"><span>Limite de cartões</span><span class="metric-symbol" aria-hidden="true">▤</span></div><strong id="metric-limits">R$ 0,00</strong><small id="card-count">nenhum cartão</small></article>
+          </div>
+          <div class="dashboard-grid">
+            <section class="panel category-panel" aria-labelledby="categories-title"><div class="section-heading"><div><p class="eyebrow">VISÃO DOS GASTOS</p><h2 id="categories-title">Por categoria</h2></div><button class="quiet-button" data-go="expenses" type="button">Ver gastos <span aria-hidden="true">→</span></button></div><div id="category-breakdown" class="category-breakdown"></div></section>
+            <section class="panel trend-panel" aria-labelledby="trend-title"><div class="section-heading"><div><p class="eyebrow">ÚLTIMOS 6 MESES</p><h2 id="trend-title">Evolução</h2></div></div><div id="monthly-chart" class="monthly-chart" aria-label="Gráfico de gastos mensais"></div></section>
+          </div>
+          <section class="insight-strip"><div class="insight-icon" aria-hidden="true">✳</div><div><p class="eyebrow">UM OLHAR SOBRE O MÊS</p><p id="insight-text">Adicione sua primeira receita ou gasto para começar a visualizar seu mês.</p></div><button class="button button-light" data-open="income" type="button">Adicionar receita</button></section>
+        </section>
+
+        <section class="view" data-page="expenses" aria-labelledby="expenses-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">SAÍDAS</p><h1 id="expenses-title">Gastos</h1><p class="page-subtitle">Registre e acompanhe suas despesas.</p></div><div class="heading-actions"><button class="button button-outline" id="expenses-csv" type="button"><span aria-hidden="true">↓</span>Exportar CSV</button><button class="button button-primary" data-open="expense" type="button"><span aria-hidden="true">＋</span>Novo gasto</button></div></div>
+          <div class="toolbar"><label class="search-box"><span aria-hidden="true">⌕</span><input id="expense-search" type="search" placeholder="Buscar gastos..." aria-label="Buscar gastos"></label><label class="select-wrap"><span class="sr-only">Filtrar por categoria</span><select id="category-filter"><option value="">Todas as categorias</option></select></label><label class="select-wrap"><span class="sr-only">Filtrar período</span><select id="period-filter"><option value="all">Todo o período</option><option value="month">Este mês</option><option value="last-month">Mês passado</option></select></label></div>
+          <div class="list-heading"><span>DESCRIÇÃO</span><span>CATEGORIA</span><span>DATA</span><span>VALOR</span><span></span></div><div id="expense-list" class="record-list"></div>
+        </section>
+
+        <section class="view" data-page="cards" aria-labelledby="cards-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">CRÉDITO</p><h1 id="cards-title">Cartões</h1><p class="page-subtitle">Acompanhe limites, juros e datas importantes.</p></div><button class="button button-primary" data-open="card" type="button"><span aria-hidden="true">＋</span>Novo cartão</button></div>
+          <div class="card-summary"><span class="summary-mark" aria-hidden="true">▤</span><div><small>LIMITE TOTAL CADASTRADO</small><strong id="cards-total-limit">R$ 0,00</strong></div><span class="summary-count" id="cards-total-count">0 cartões</span></div>
+          <div id="card-list" class="card-grid"></div>
+        </section>
+
+        <section class="view" data-page="income" aria-labelledby="income-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">ENTRADAS</p><h1 id="income-title">Receitas</h1><p class="page-subtitle">Planeje suas fontes de renda e dias de recebimento.</p></div><button class="button button-primary" data-open="income" type="button"><span aria-hidden="true">＋</span>Nova receita</button></div>
+          <div class="income-summary"><div><small>RECEITA MENSAL PREVISTA</small><strong id="income-total">R$ 0,00</strong></div><span aria-hidden="true">↗</span></div>
+          <div class="section-heading income-heading"><div><p class="eyebrow">FONTES CADASTRADAS</p><h2>Suas receitas</h2></div></div>
+          <div id="income-list" class="record-list income-list"></div>
+          <section class="panel calendar-panel"><div class="section-heading"><div><p class="eyebrow">PRÓXIMOS RECEBIMENTOS</p><h2 id="calendar-title">Calendário</h2></div></div><div id="income-calendar" class="income-calendar"></div></section>
+        </section>
+
+        <section class="view" data-page="calculator" aria-labelledby="calculator-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">SIMULAÇÃO</p><h1 id="calculator-title">Calculadora de juros</h1><p class="page-subtitle">Compare cenários antes de assumir uma parcela.</p></div></div>
+          <div class="calculator-layout"><form id="calculator-form" class="panel calculator-form"><div class="segmented" role="group" aria-label="Tipo de cálculo"><button type="button" data-calc-mode="installment" class="is-selected">Compra parcelada</button><button type="button" data-calc-mode="revolving">Juros compostos</button></div><label class="field"><span>Valor inicial (R$)</span><input name="amount" type="number" min="0.01" step="0.01" required placeholder="0,00"></label><div class="field-row"><label class="field"><span>Taxa mensal (%)</span><input name="rate" type="number" min="0" step="0.01" required placeholder="0,00"></label><label class="field"><span id="term-label">Parcelas</span><input name="term" type="number" min="1" max="360" value="12" required></label></div><button class="button button-primary" type="submit">Calcular <span aria-hidden="true">→</span></button><p class="form-footnote">Simulação estimada. Confira as condições do contrato antes de decidir.</p></form><section class="calculator-result" id="calculator-result" aria-live="polite"><span class="result-mark" aria-hidden="true">÷</span><p>Preencha os dados e clique em calcular.</p></section></div>
+        </section>
+
+        <section class="view" data-page="settings" aria-labelledby="settings-title" hidden>
+          <div class="page-heading"><div><p class="eyebrow">PREFERÊNCIAS</p><h1 id="settings-title">Ajustes</h1><p class="page-subtitle">Controle seus dados armazenados neste navegador.</p></div></div>
+          <section class="settings-section"><div class="section-heading"><div><p class="eyebrow">PRIVACIDADE</p><h2>Seus dados</h2></div></div><p class="settings-copy">Este app salva seus registros localmente neste navegador. Eles não são enviados para uma conta ou servidor.</p><div class="settings-actions"><button class="button button-outline" id="backup-json" type="button">Baixar cópia dos dados</button><label class="button button-outline file-button">Importar cópia<input id="restore-json" type="file" accept="application/json,.json" hidden></label><button class="button button-danger" id="clear-data" type="button">Apagar todos os dados locais</button></div></section>
+          <section class="settings-section"><div class="section-heading"><div><p class="eyebrow">ARMAZENAMENTO</p><h2>Uso neste navegador</h2></div><span class="independent-badge">LOCAL</span></div><p class="settings-copy">Seus registros ficam neste dispositivo e não são sincronizados com outros navegadores.</p></section>
+        </section>
+      </main>
+      <footer class="workspace-footer"><span>EducaGrana</span><span>Seus dados permanecem neste navegador.</span></footer>
+    </div>
+  </div>
+
+  <dialog id="record-dialog" class="record-dialog"><form id="record-form" method="dialog"></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
