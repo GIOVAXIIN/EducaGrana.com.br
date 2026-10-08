@@ -1,4 +1,4 @@
-window.EDUCAGRANA_SUPABASE_CONFIG = Object.freeze({
+window.EDUCAGRANA_SUPABASE_CONFIG = {
   url: "",
   anonKey: ""
-});
+};
