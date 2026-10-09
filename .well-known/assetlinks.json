@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.educagrana.app",
+      "sha256_cert_fingerprints": [
+        "F0:3B:70:B1:3E:AB:DB:53:B9:4A:E5:B0:ED:E8:4E:E1:E2:F8:DB:33:65:04:35:F4:CD:70:3B:B2:DA:15:15:33"
+      ]
+    }
+  }
+]
