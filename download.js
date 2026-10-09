@@ -17,23 +17,27 @@ function setInstallMessage(message) {
   installStatus.textContent = message;
 }
 
+function setInstallButtonLabel(message) {
+  installButton.querySelector(".install-label").textContent = message;
+}
+
 if (isStandalone()) {
-  installButton.textContent = "✓ EducaGrana já está instalado";
+  setInstallButtonLabel("\u2713 EducaGrana j\u00E1 est\u00E1 instalado");
   installButton.disabled = true;
-  setInstallMessage("Você já está usando o app instalado no seu dispositivo.");
+  setInstallMessage("Voc\u00EA j\u00E1 est\u00E1 usando o app instalado no seu dispositivo.");
 } else if (isIosDevice()) {
-  setInstallMessage("No iPhone ou iPad: toque em Compartilhar no Safari e depois em “Adicionar à Tela de Início”.");
+  setInstallMessage("No iPhone ou iPad: toque em Compartilhar no Safari e depois em \u201CAdicionar \u00E0 Tela de In\u00EDcio\u201D.");
 } else if (!window.isSecureContext && location.hostname !== "localhost") {
   installButton.disabled = true;
-  setInstallMessage("A instalação exige que o site seja publicado em HTTPS.");
+  setInstallMessage("A instala\u00E7\u00E3o exige que o site seja publicado em HTTPS.");
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   installPrompt = event;
   installButton.disabled = false;
-  installButton.textContent = "↓  Instalar EducaGrana";
-  setInstallMessage("Pronto para instalar. Toque no botão e confirme no seu dispositivo.");
+  setInstallButtonLabel("Instalar EducaGrana");
+  setInstallMessage("Pronto para instalar. Toque no bot\u00E3o e confirme no seu dispositivo.");
 });
 
 installButton.addEventListener("click", async () => {
@@ -45,21 +49,21 @@ installButton.addEventListener("click", async () => {
     installPrompt = null;
     installButton.disabled = false;
     if (choice.outcome === "accepted") {
-      setInstallMessage("Instalação confirmada. Procure o EducaGrana na tela inicial do seu dispositivo.");
+      setInstallMessage("Instala\u00E7\u00E3o confirmada. Procure o EducaGrana na tela inicial do seu dispositivo.");
     } else {
-      setInstallMessage("Sem problema. Você pode instalar depois pelo menu do navegador.");
+      setInstallMessage("Sem problema. Voc\u00EA pode instalar depois pelo menu do navegador.");
     }
     return;
   }
   helpSection.scrollIntoView({ behavior: "smooth", block: "start" });
   setInstallMessage(isIosDevice()
-    ? "No Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”."
-    : "Siga as instruções para seu dispositivo abaixo para adicionar o app à tela inicial.");
+    ? "No Safari, toque em Compartilhar e escolha \u201CAdicionar \u00E0 Tela de In\u00EDcio\u201D."
+    : "Siga as instru\u00E7\u00F5es para seu dispositivo abaixo para adicionar o app \u00E0 tela inicial.");
 });
 
 window.addEventListener("appinstalled", () => {
   installPrompt = null;
-  installButton.textContent = "✓ EducaGrana instalado";
+  setInstallButtonLabel("\u2713 EducaGrana instalado");
   installButton.disabled = true;
   setInstallMessage("O EducaGrana foi instalado com sucesso.");
 });
