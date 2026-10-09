@@ -36,6 +36,7 @@ h1 span { color: #8aa9ff; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 11px; }
 .install-button, .open-button { display: inline-flex; min-height: 49px; align-items: center; justify-content: center; gap: 8px; padding: 0 19px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 800; transition: transform .16s, filter .16s, border-color .16s; }
 .install-button { border-color: transparent; background: linear-gradient(130deg, #6797ff, #536ff2); color: #fff; box-shadow: 0 9px 27px rgb(77 112 237 / 25%); }
+.download-icon { width: 17px; height: 17px; flex: 0 0 auto; }
 .install-button:hover, .open-button:hover { transform: translateY(-2px); filter: brightness(1.08); }
 .open-button { background: var(--surface); color: var(--text); }
 .install-status { min-height: 20px; margin: 13px 0 0; color: #7f8da4; font-size: 12px; line-height: 1.6; }
