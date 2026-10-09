@@ -1,4 +1,4 @@
-const CACHE_NAME = "educagrana-v5";
+const CACHE_NAME = "educagrana-v6";
 const APP_FILES = ["./", "./index.html", "./baixar.html", "./styles.css", "./download.css", "./download.js", "./app.js", "./supabase-config.js", "./manifest.json", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
